@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -25,7 +26,14 @@ type Sprint struct {
 // with extra columns (depends_on, frs, etc.) are handled correctly.
 // Normalizes "complete" to "completed".
 func ParseLedger(r io.Reader) ([]Sprint, error) {
-	reader := csv.NewReader(r)
+	// Strip UTF-8 BOM if present (common with Excel/Notepad-saved files)
+	raw, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("reading input: %w", err)
+	}
+	raw = bytes.TrimPrefix(raw, []byte{0xEF, 0xBB, 0xBF})
+
+	reader := csv.NewReader(bytes.NewReader(raw))
 	reader.Comma = '\t'
 	reader.FieldsPerRecord = -1
 	reader.LazyQuotes = true

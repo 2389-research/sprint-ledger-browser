@@ -129,3 +129,24 @@ func TestLoadDetailContent_MissingFile(t *testing.T) {
 		t.Errorf("expected '%s', got '%s'", expected, content)
 	}
 }
+
+func TestParseLedger_BOMPrefix(t *testing.T) {
+	data, err := os.Open(filepath.Join("testdata", "bom", ".ai", "ledger.tsv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer data.Close()
+
+	sprints, err := ParseLedger(data)
+	if err != nil {
+		t.Fatalf("BOM-prefixed file should parse successfully, got: %v", err)
+	}
+
+	if len(sprints) != 1 {
+		t.Fatalf("expected 1 sprint, got %d", len(sprints))
+	}
+
+	if sprints[0].ID != "001" {
+		t.Errorf("expected ID '001', got '%s'", sprints[0].ID)
+	}
+}
