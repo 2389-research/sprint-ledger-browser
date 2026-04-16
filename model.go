@@ -84,7 +84,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		headerHeight := 1
 		helpHeight := 1
-		availableHeight := m.height - headerHeight - helpHeight
+		borderHeight := 4 // 2 lines per bordered pane × 2 panes
+		availableHeight := m.height - headerHeight - helpHeight - borderHeight
 
 		tableHeight := availableHeight * 40 / 100
 		if tableHeight < 3 {
@@ -165,7 +166,7 @@ func (m model) View() string {
 		detailView = focusedBorder.Width(m.width - 2).Render(m.viewport.View())
 	}
 
-	help := helpStyle.Render("↑/↓ navigate • tab focus • q quit")
+	help := helpStyle.Render("j/k navigate • enter/tab focus • q quit")
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,

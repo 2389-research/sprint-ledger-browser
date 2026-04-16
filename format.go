@@ -24,7 +24,7 @@ func FormatStatus(status string) string {
 	case "planned":
 		return dimStyle.Render("○ plan")
 	case "skipped":
-		return dimStyle.Render("⊘ skip")
+		return dimStyle.Strikethrough(true).Render("⊘ skip")
 	default:
 		return "? " + status
 	}

@@ -4,6 +4,7 @@ package main
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -145,19 +146,67 @@ func TestE2E_EmptyLedger(t *testing.T) {
 	}
 }
 
-// containsString checks if needle is in haystack, stripping ANSI escape codes first.
-func containsString(haystack, needle string) bool {
-	cleaned := stripAnsi(haystack)
-	return indexOf(cleaned, needle) >= 0
+func TestModel_CursorMovementUpdatesDetail(t *testing.T) {
+	sprints := loadTestSprints(t)
+	m := newModel(sprints, "test-project")
+
+	// Resize to initialize
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m2 := updated.(model)
+
+	// Initial view should show sprint 001 detail
+	view1 := m2.View()
+	if !containsString(view1, "Sprint 001") {
+		t.Error("initial view should show Sprint 001 detail")
+	}
+
+	// Move cursor down (send "j" key while table focused)
+	updated, _ = m2.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m3 := updated.(model)
+
+	// View should now show sprint 002 detail
+	view2 := m3.View()
+	if !containsString(view2, "Sprint 002") {
+		t.Error("after cursor down, view should show Sprint 002 detail")
+	}
 }
 
-func indexOf(s, substr string) int {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return i
-		}
+func TestModel_FocusToggleWithEnter(t *testing.T) {
+	sprints := loadTestSprints(t)
+	m := newModel(sprints, "test-project")
+
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m2 := updated.(model)
+
+	// Enter to switch to detail
+	updated, _ = m2.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m3 := updated.(model)
+
+	if m3.focus != focusDetail {
+		t.Error("expected focus on detail after enter")
 	}
-	return -1
+}
+
+func TestModel_QuitOnCtrlC(t *testing.T) {
+	sprints := loadTestSprints(t)
+	m := newModel(sprints, "test-project")
+
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	_, cmd := updated.(model).Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+
+	if cmd == nil {
+		t.Fatal("expected quit command from ctrl+c, got nil")
+	}
+	msg := cmd()
+	if _, ok := msg.(tea.QuitMsg); !ok {
+		t.Errorf("expected QuitMsg, got %T", msg)
+	}
+}
+
+// containsString checks if needle is in haystack, stripping ANSI escape codes first.
+func containsString(haystack, needle string) bool {
+	return strings.Contains(stripAnsi(haystack), needle)
 }
 
 func stripAnsi(s string) string {
