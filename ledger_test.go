@@ -113,7 +113,10 @@ func TestLoadDetailContent_ValidFile(t *testing.T) {
 		ID:         "001",
 		DetailPath: filepath.Join("testdata", "valid", ".ai", "sprints", "SPRINT-001.md"),
 	}
-	content := LoadDetailContent(s)
+	content, err := LoadDetailContent(s)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if len(content) == 0 {
 		t.Error("expected non-empty content")
 	}
@@ -124,10 +127,21 @@ func TestLoadDetailContent_ValidFile(t *testing.T) {
 
 func TestLoadDetailContent_MissingFile(t *testing.T) {
 	s := Sprint{ID: "999", DetailPath: ""}
-	content := LoadDetailContent(s)
+	content, err := LoadDetailContent(s)
+	if err != nil {
+		t.Fatal("empty DetailPath should not be an error")
+	}
 	expected := "No sprint detail file found for SPRINT-999.md"
 	if content != expected {
 		t.Errorf("expected '%s', got '%s'", expected, content)
+	}
+}
+
+func TestLoadDetailContent_UnreadableFile(t *testing.T) {
+	s := Sprint{ID: "001", DetailPath: "/nonexistent/path/SPRINT-001.md"}
+	_, err := LoadDetailContent(s)
+	if err == nil {
+		t.Error("expected error for unreadable file")
 	}
 }
 

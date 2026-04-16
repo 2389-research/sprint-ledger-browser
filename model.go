@@ -107,7 +107,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.ready {
 			m.viewport = viewport.New(contentWidth, detailHeight)
 			if len(m.sprints) > 0 {
-				m.viewport.SetContent(LoadDetailContent(m.sprints[0]))
+				content, err := LoadDetailContent(m.sprints[0])
+				if err != nil {
+					content = fmt.Sprintf("Error: %v", err)
+				}
+				m.viewport.SetContent(content)
 			} else {
 				m.viewport.SetContent("No sprints found")
 			}
@@ -158,7 +162,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 		if m.table.Cursor() != prevCursor && m.table.Cursor() < len(m.sprints) {
-			m.viewport.SetContent(LoadDetailContent(m.sprints[m.table.Cursor()]))
+			content, err := LoadDetailContent(m.sprints[m.table.Cursor()])
+			if err != nil {
+				content = fmt.Sprintf("Error: %v", err)
+			}
+			m.viewport.SetContent(content)
 			m.viewport.GotoTop()
 		}
 	} else {

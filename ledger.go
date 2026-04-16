@@ -130,14 +130,15 @@ func LoadSprints(projectRoot string) ([]Sprint, error) {
 }
 
 // LoadDetailContent reads the content of a sprint detail file.
-// Returns a placeholder message if the path is empty or the file can't be read.
-func LoadDetailContent(s Sprint) string {
+// Returns a placeholder message if the path is empty.
+// Returns an error if the file exists but can't be read.
+func LoadDetailContent(s Sprint) (string, error) {
 	if s.DetailPath == "" {
-		return fmt.Sprintf("No sprint detail file found for SPRINT-%s.md", s.ID)
+		return fmt.Sprintf("No sprint detail file found for SPRINT-%s.md", s.ID), nil
 	}
 	data, err := os.ReadFile(s.DetailPath)
 	if err != nil {
-		return fmt.Sprintf("Error reading %s: %v", s.DetailPath, err)
+		return "", fmt.Errorf("reading %s: %w", s.DetailPath, err)
 	}
-	return string(data)
+	return string(data), nil
 }
