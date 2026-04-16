@@ -124,13 +124,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 
-		case "tab", "enter":
+		case "tab":
 			if m.focus == focusTable {
 				m.focus = focusDetail
 				m.table.Blur()
 			} else {
 				m.focus = focusTable
 				m.table.Focus()
+			}
+			return m, nil
+
+		case "enter":
+			if m.focus == focusTable {
+				m.focus = focusDetail
+				m.table.Blur()
 			}
 			return m, nil
 
@@ -181,7 +188,7 @@ func (m model) View() string {
 		detailView = focusedBorder.Width(m.width - 2).Render(m.viewport.View())
 	}
 
-	help := helpStyle.Render("j/k navigate • tab focus • esc back • q quit")
+	help := helpStyle.Render("j/k navigate • enter/tab focus • esc back • q quit")
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,

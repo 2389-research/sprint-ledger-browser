@@ -186,6 +186,36 @@ func TestModel_FocusToggleWithEnter(t *testing.T) {
 	if m3.focus != focusDetail {
 		t.Error("expected focus on detail after enter")
 	}
+
+	// Enter again should stay in detail (enter is one-way: table->detail)
+	updated, _ = m3.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m4 := updated.(model)
+
+	if m4.focus != focusDetail {
+		t.Error("expected focus to stay on detail after second enter")
+	}
+}
+
+func TestModel_EnterOnlyGoesToDetail(t *testing.T) {
+	sprints := loadTestSprints(t)
+	m := newModel(sprints, "test-project")
+
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m2 := updated.(model)
+
+	// Enter while in table -> should go to detail
+	updated, _ = m2.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m3 := updated.(model)
+	if m3.focus != focusDetail {
+		t.Error("enter from table should go to detail")
+	}
+
+	// Enter while in detail -> should stay in detail (not toggle back)
+	updated, _ = m3.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m4 := updated.(model)
+	if m4.focus != focusDetail {
+		t.Error("enter from detail should stay in detail")
+	}
 }
 
 func TestModel_QuitOnCtrlC(t *testing.T) {
