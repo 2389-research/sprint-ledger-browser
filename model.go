@@ -133,6 +133,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.table.Focus()
 			}
 			return m, nil
+
+		case "esc":
+			if m.focus == focusDetail {
+				m.focus = focusTable
+				m.table.Focus()
+			}
+			return m, nil
 		}
 	}
 
@@ -174,7 +181,7 @@ func (m model) View() string {
 		detailView = focusedBorder.Width(m.width - 2).Render(m.viewport.View())
 	}
 
-	help := helpStyle.Render("j/k navigate • enter/tab focus • q quit")
+	help := helpStyle.Render("j/k navigate • tab focus • esc back • q quit")
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,

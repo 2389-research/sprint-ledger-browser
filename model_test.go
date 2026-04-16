@@ -205,6 +205,30 @@ func TestModel_QuitOnCtrlC(t *testing.T) {
 	}
 }
 
+func TestModel_EscapeReturnsToTable(t *testing.T) {
+	sprints := loadTestSprints(t)
+	m := newModel(sprints, "test-project")
+
+	// Resize to initialize
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m2 := updated.(model)
+
+	// Tab to detail
+	updated, _ = m2.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m3 := updated.(model)
+	if m3.focus != focusDetail {
+		t.Fatal("expected focus on detail after tab")
+	}
+
+	// Escape to go back to table
+	updated, _ = m3.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m4 := updated.(model)
+
+	if m4.focus != focusTable {
+		t.Error("expected focus on table after escape")
+	}
+}
+
 func TestModel_TinyTerminalNoPanic(t *testing.T) {
 	sprints := loadTestSprints(t)
 	m := newModel(sprints, "test-project")
