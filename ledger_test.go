@@ -5,6 +5,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -148,5 +149,35 @@ func TestParseLedger_BOMPrefix(t *testing.T) {
 
 	if sprints[0].ID != "001" {
 		t.Errorf("expected ID '001', got '%s'", sprints[0].ID)
+	}
+}
+
+func TestLoadSprints_PathTraversalInID(t *testing.T) {
+	// Create a temporary project with a malicious sprint ID
+	tmpDir := t.TempDir()
+	aiDir := filepath.Join(tmpDir, ".ai")
+	os.MkdirAll(aiDir, 0755)
+
+	tsv := "sprint_id\ttitle\tstatus\tcreated_at\tupdated_at\n" +
+		"../../etc/passwd\tEvil Sprint\tplanned\t2026-04-10T19:11:51Z\t2026-04-11T10:00:00Z\n"
+	os.WriteFile(filepath.Join(aiDir, "ledger.tsv"), []byte(tsv), 0644)
+
+	sprints, err := LoadSprints(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(sprints) != 1 {
+		t.Fatalf("expected 1 sprint, got %d", len(sprints))
+	}
+
+	// The sprint should parse, but DetailPath should NOT resolve to a file
+	// outside the project directory
+	if sprints[0].DetailPath != "" {
+		resolved, _ := filepath.Abs(sprints[0].DetailPath)
+		projectAbs, _ := filepath.Abs(tmpDir)
+		if !strings.HasPrefix(resolved, projectAbs) {
+			t.Errorf("DetailPath escaped project root: %s", resolved)
+		}
 	}
 }

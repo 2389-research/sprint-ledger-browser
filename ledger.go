@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -113,8 +114,13 @@ func LoadSprints(projectRoot string) ([]Sprint, error) {
 		return nil, err
 	}
 
+	sprintsDir := filepath.Join(projectRoot, ".ai", "sprints")
 	for i := range sprints {
-		detailPath := filepath.Join(projectRoot, ".ai", "sprints", fmt.Sprintf("SPRINT-%s.md", sprints[i].ID))
+		// Reject IDs containing path separators or traversal sequences
+		if strings.ContainsAny(sprints[i].ID, "/\\") || strings.Contains(sprints[i].ID, "..") {
+			continue
+		}
+		detailPath := filepath.Join(sprintsDir, fmt.Sprintf("SPRINT-%s.md", sprints[i].ID))
 		if _, err := os.Stat(detailPath); err == nil {
 			sprints[i].DetailPath = detailPath
 		}
