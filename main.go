@@ -20,7 +20,7 @@ func main() {
 			fmt.Println("Reads <project-root>/.ai/ledger.tsv and displays sprints in a")
 			fmt.Println("navigable table with detail pane showing SPRINT-*.md content.")
 			fmt.Println()
-			fmt.Println("Keys: j/k navigate, tab toggle focus, q quit")
+			fmt.Println("Keys: j/k navigate, enter/tab focus, esc back, q quit")
 			os.Exit(0)
 		}
 		fmt.Fprintln(os.Stderr, "usage: sprint-ledger <project-root>")
