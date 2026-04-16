@@ -1,2 +1,4 @@
 # Build output
 sprint-ledger
+.scratch/
+scenario_*_test.go
