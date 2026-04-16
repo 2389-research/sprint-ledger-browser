@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -201,6 +202,32 @@ func TestModel_QuitOnCtrlC(t *testing.T) {
 	msg := cmd()
 	if _, ok := msg.(tea.QuitMsg); !ok {
 		t.Errorf("expected QuitMsg, got %T", msg)
+	}
+}
+
+func TestModel_TinyTerminalNoPanic(t *testing.T) {
+	sprints := loadTestSprints(t)
+	m := newModel(sprints, "test-project")
+
+	// Terminal so small that detailHeight would go negative without clamping
+	sizes := []tea.WindowSizeMsg{
+		{Width: 10, Height: 5},
+		{Width: 1, Height: 1},
+		{Width: 80, Height: 8},
+		{Width: 3, Height: 3},
+	}
+
+	for _, size := range sizes {
+		t.Run(fmt.Sprintf("%dx%d", size.Width, size.Height), func(t *testing.T) {
+			updated, _ := m.Update(size)
+			m2 := updated.(model)
+
+			// Should not panic when rendering
+			view := m2.View()
+			if len(view) == 0 {
+				t.Error("expected non-empty view")
+			}
+		})
 	}
 }
 

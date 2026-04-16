@@ -92,12 +92,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			tableHeight = 3
 		}
 		detailHeight := availableHeight - tableHeight
+		if detailHeight < 1 {
+			detailHeight = 1
+		}
 
-		m.table.SetWidth(m.width - 2)
+		contentWidth := m.width - 2
+		if contentWidth < 1 {
+			contentWidth = 1
+		}
+
+		m.table.SetWidth(contentWidth)
 		m.table.SetHeight(tableHeight)
 
 		if !m.ready {
-			m.viewport = viewport.New(m.width-2, detailHeight)
+			m.viewport = viewport.New(contentWidth, detailHeight)
 			if len(m.sprints) > 0 {
 				m.viewport.SetContent(LoadDetailContent(m.sprints[0]))
 			} else {
@@ -105,7 +113,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.ready = true
 		} else {
-			m.viewport.Width = m.width - 2
+			m.viewport.Width = contentWidth
 			m.viewport.Height = detailHeight
 		}
 
