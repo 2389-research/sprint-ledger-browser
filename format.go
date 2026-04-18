@@ -25,6 +25,8 @@ func FormatStatus(status string) string {
 		return dimStyle.Render("○ plan")
 	case "skipped":
 		return dimStyle.Strikethrough(true).Render("⊘ skip")
+	case "failed":
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render("✗ fail")
 	default:
 		return "? " + status
 	}

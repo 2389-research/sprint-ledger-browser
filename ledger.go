@@ -1,5 +1,5 @@
-// ABOUTME: Sprint data model and TSV ledger parser.
-// ABOUTME: Reads .ai/ledger.tsv files and resolves paths to SPRINT-*.md detail files.
+// ABOUTME: Sprint data model and ledger parser (TSV and YAML formats).
+// ABOUTME: Reads .ai/ledger.tsv or .ai/ledger.yaml and resolves paths to SPRINT-*.md detail files.
 package main
 
 import (
@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Sprint struct {
@@ -100,18 +102,80 @@ func ParseLedger(r io.Reader) ([]Sprint, error) {
 	return sprints, nil
 }
 
-// LoadSprints reads the ledger from a project root and resolves detail file paths.
-func LoadSprints(projectRoot string) ([]Sprint, error) {
-	ledgerPath := filepath.Join(projectRoot, ".ai", "ledger.tsv")
-	f, err := os.Open(ledgerPath)
-	if err != nil {
-		return nil, fmt.Errorf("opening ledger: %w", err)
-	}
-	defer f.Close()
+// yamlLedger is the top-level structure of a YAML ledger file.
+type yamlLedger struct {
+	Sprints []yamlSprint `yaml:"sprints"`
+}
 
-	sprints, err := ParseLedger(f)
-	if err != nil {
-		return nil, err
+// yamlSprint maps a single sprint entry in the YAML format.
+type yamlSprint struct {
+	ID        string `yaml:"id"`
+	Title     string `yaml:"title"`
+	Status    string `yaml:"status"`
+	CreatedAt string `yaml:"created_at"`
+	UpdatedAt string `yaml:"updated_at"`
+}
+
+// ParseYAMLLedger reads a YAML ledger file and returns Sprint records.
+// Normalizes "complete" to "completed".
+func ParseYAMLLedger(r io.Reader) ([]Sprint, error) {
+	var ledger yamlLedger
+	dec := yaml.NewDecoder(r)
+	if err := dec.Decode(&ledger); err != nil {
+		return nil, fmt.Errorf("parsing YAML ledger: %w", err)
+	}
+
+	var sprints []Sprint
+	for _, ys := range ledger.Sprints {
+		status := ys.Status
+		if status == "complete" {
+			status = "completed"
+		}
+
+		var createdAt, updatedAt time.Time
+		if ys.CreatedAt != "" {
+			createdAt, _ = time.Parse(time.RFC3339, ys.CreatedAt)
+		}
+		if ys.UpdatedAt != "" {
+			updatedAt, _ = time.Parse(time.RFC3339, ys.UpdatedAt)
+		}
+
+		sprints = append(sprints, Sprint{
+			ID:        ys.ID,
+			Title:     ys.Title,
+			Status:    status,
+			CreatedAt: createdAt,
+			UpdatedAt: updatedAt,
+		})
+	}
+
+	return sprints, nil
+}
+
+// LoadSprints reads the ledger from a project root and resolves detail file paths.
+// Tries ledger.yaml first, then falls back to ledger.tsv.
+func LoadSprints(projectRoot string) ([]Sprint, error) {
+	aiDir := filepath.Join(projectRoot, ".ai")
+
+	var sprints []Sprint
+
+	yamlPath := filepath.Join(aiDir, "ledger.yaml")
+	tsvPath := filepath.Join(aiDir, "ledger.tsv")
+
+	if f, err := os.Open(yamlPath); err == nil {
+		defer f.Close()
+		sprints, err = ParseYAMLLedger(f)
+		if err != nil {
+			return nil, err
+		}
+	} else if f, err := os.Open(tsvPath); err == nil {
+		defer f.Close()
+		sprints, err = ParseLedger(f)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, fmt.Errorf("opening ledger: no ledger.yaml or ledger.tsv found in %s", aiDir)
 	}
 
 	sprintsDir := filepath.Join(projectRoot, ".ai", "sprints")

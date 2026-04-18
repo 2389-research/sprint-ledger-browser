@@ -17,6 +17,7 @@ func TestFormatStatus(t *testing.T) {
 		{"in_progress", "◐"},
 		{"planned", "○"},
 		{"skipped", "⊘"},
+		{"failed", "✗"},
 		{"unknown", "?"},
 	}
 

@@ -1,4 +1,4 @@
-// ABOUTME: Unit tests for TSV ledger parsing and sprint detail file resolution.
+// ABOUTME: Unit tests for TSV and YAML ledger parsing and sprint detail file resolution.
 // ABOUTME: Covers happy path, malformed input, status normalization, and missing files.
 package main
 
@@ -163,6 +163,99 @@ func TestParseLedger_BOMPrefix(t *testing.T) {
 
 	if sprints[0].ID != "001" {
 		t.Errorf("expected ID '001', got '%s'", sprints[0].ID)
+	}
+}
+
+func TestParseYAMLLedger_ValidFile(t *testing.T) {
+	data, err := os.Open(filepath.Join("testdata", "yaml", ".ai", "ledger.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer data.Close()
+
+	sprints, err := ParseYAMLLedger(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(sprints) != 3 {
+		t.Fatalf("expected 3 sprints, got %d", len(sprints))
+	}
+
+	s := sprints[0]
+	if s.ID != "001" {
+		t.Errorf("expected ID '001', got '%s'", s.ID)
+	}
+	if s.Title != "Foundation & Data Model" {
+		t.Errorf("expected title 'Foundation & Data Model', got '%s'", s.Title)
+	}
+	if s.Status != "completed" {
+		t.Errorf("expected status 'completed', got '%s'", s.Status)
+	}
+	expected := time.Date(2026, 4, 11, 10, 0, 0, 0, time.UTC)
+	if !s.UpdatedAt.Equal(expected) {
+		t.Errorf("expected UpdatedAt %v, got %v", expected, s.UpdatedAt)
+	}
+}
+
+func TestParseYAMLLedger_StatusNormalization(t *testing.T) {
+	yaml := `
+sprints:
+  - id: '001'
+    title: Test
+    status: complete
+    created_at: '2026-04-10T19:11:51Z'
+    updated_at: '2026-04-10T19:11:51Z'
+`
+	sprints, err := ParseYAMLLedger(strings.NewReader(yaml))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sprints) != 1 {
+		t.Fatalf("expected 1 sprint, got %d", len(sprints))
+	}
+	if sprints[0].Status != "completed" {
+		t.Errorf("expected 'completed' (normalized), got '%s'", sprints[0].Status)
+	}
+}
+
+func TestParseYAMLLedger_EmptySprints(t *testing.T) {
+	yaml := `
+project:
+  name: Empty
+sprints: []
+`
+	sprints, err := ParseYAMLLedger(strings.NewReader(yaml))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sprints) != 0 {
+		t.Fatalf("expected 0 sprints, got %d", len(sprints))
+	}
+}
+
+func TestParseYAMLLedger_InvalidYAML(t *testing.T) {
+	bad := strings.NewReader("{{not valid yaml at all")
+	_, err := ParseYAMLLedger(bad)
+	if err == nil {
+		t.Fatal("expected error for invalid YAML, got nil")
+	}
+}
+
+func TestLoadSprints_YAMLProject(t *testing.T) {
+	sprints, err := LoadSprints(filepath.Join("testdata", "yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(sprints) != 3 {
+		t.Fatalf("expected 3 sprints, got %d", len(sprints))
+	}
+
+	for _, s := range sprints {
+		if s.DetailPath == "" {
+			t.Errorf("sprint %s: expected DetailPath to be set", s.ID)
+		}
 	}
 }
 
