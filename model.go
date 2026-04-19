@@ -21,6 +21,7 @@ const (
 type model struct {
 	sprints     []Sprint
 	projectName string
+	projectRoot string
 	table       table.Model
 	viewport    viewport.Model
 	focus       focus
@@ -29,7 +30,7 @@ type model struct {
 	ready       bool
 }
 
-func newModel(sprints []Sprint, projectName string) model {
+func newModel(sprints []Sprint, projectName, projectRoot string) model {
 	columns := []table.Column{
 		{Title: "ID", Width: 5},
 		{Title: "Title", Width: 30},
@@ -65,12 +66,16 @@ func newModel(sprints []Sprint, projectName string) model {
 	return model{
 		sprints:     sprints,
 		projectName: projectName,
+		projectRoot: projectRoot,
 		table:       t,
 		focus:       focusTable,
 	}
 }
 
 func (m model) Init() tea.Cmd {
+	if m.projectRoot != "" {
+		return watchLedger(m.projectRoot)
+	}
 	return nil
 }
 
@@ -78,6 +83,40 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case ledgerChangedMsg:
+		sprints, err := LoadSprints(m.projectRoot)
+		if err != nil {
+			return m, watchLedger(m.projectRoot)
+		}
+		m.sprints = sprints
+
+		rawRows := SprintsToRows(sprints)
+		rows := make([]table.Row, len(rawRows))
+		for i, r := range rawRows {
+			rows[i] = table.Row(r)
+		}
+		m.table.SetRows(rows)
+
+		cursor := m.table.Cursor()
+		if cursor >= len(sprints) {
+			cursor = len(sprints) - 1
+		}
+		if cursor < 0 {
+			cursor = 0
+		}
+
+		if len(sprints) > 0 && cursor < len(sprints) {
+			content, err := LoadDetailContent(sprints[cursor])
+			if err != nil {
+				content = fmt.Sprintf("Error: %v", err)
+			}
+			m.viewport.SetContent(content)
+		} else {
+			m.viewport.SetContent("No sprints found")
+		}
+
+		return m, watchLedger(m.projectRoot)
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
