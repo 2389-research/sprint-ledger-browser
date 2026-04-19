@@ -22,7 +22,7 @@ func main() {
 		fmt.Println("If no project-root is given, uses the current directory when")
 		fmt.Println("it contains an .ai folder.")
 		fmt.Println()
-		fmt.Println("Keys: j/k navigate, enter/tab focus, esc back, q quit")
+		fmt.Println("Keys: j/k navigate, enter/tab focus, esc back, r reload, q quit")
 		os.Exit(0)
 	}
 
