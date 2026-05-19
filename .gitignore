@@ -1,4 +1,5 @@
 # Build output
 sprint-ledger
 .scratch/
+.private-journal/
 scenario_*_test.go
