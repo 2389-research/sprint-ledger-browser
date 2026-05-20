@@ -66,10 +66,96 @@ func readCurrentIterationID(projectRoot string) string {
 // renderIterDetailWithOverlay composes the status-first overlay for the
 // current iteration: header + progress + tasks + reviews + loop context +
 // roadmap section. Each block is best-effort; missing files are silently
-// omitted. Implemented incrementally; see Task 10–12 for sections.
+// omitted.
 func renderIterDetailWithOverlay(s Sprint, projectRoot string) string {
-	// Stub: just returns the section for now. Overlay blocks added in Task 10+.
-	return s.Section
+	var b strings.Builder
+
+	// Header: "ITER-0003a  [in_progress | run status: fail]"
+	b.WriteString(effectivePrefix(s))
+	b.WriteString("-")
+	b.WriteString(s.ID)
+	b.WriteString("  [")
+	b.WriteString(s.Status)
+	if runStatus := readTrimmed(filepath.Join(projectRoot, ".ai", "iter-workflow-status.txt")); runStatus != "" {
+		b.WriteString(" | run status: ")
+		b.WriteString(runStatus)
+	}
+	b.WriteString("]\n\n")
+
+	// Progress block (docs/iterations/progress.md) — only if it references the current ITER ID.
+	progressPath := filepath.Join(projectRoot, "docs", "iterations", "progress.md")
+	if progress, ok := readProgressIfMatches(progressPath, effectivePrefix(s)+"-"+s.ID); ok {
+		b.WriteString("## Progress\n\n")
+		b.WriteString(progress)
+		ensureTrailingBlank(&b)
+	}
+
+	// Tasks block (.ai/iter-run-temp/task_status.txt)
+	if tasks := readTrimmed(filepath.Join(projectRoot, ".ai", "iter-run-temp", "task_status.txt")); tasks != "" {
+		b.WriteString("## Tasks\n\n")
+		b.WriteString(tasks)
+		b.WriteString("\n\n")
+	}
+
+	// Roadmap section last.
+	b.WriteString("## Roadmap Section\n\n")
+	b.WriteString(s.Section)
+	return b.String()
+}
+
+// readTrimmed reads a file and returns its trimmed contents, or "" on any error.
+func readTrimmed(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+// readProgressIfMatches returns the file contents only when the first ~20 lines
+// reference the given fullID (e.g. "ITER-0003a"). Prevents stale snapshots
+// showing the wrong iteration.
+func readProgressIfMatches(path, fullID string) (string, bool) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", false
+	}
+	content := string(data)
+	head := content
+	if nl := indexNthByte(content, '\n', 20); nl > 0 {
+		head = content[:nl]
+	}
+	if !strings.Contains(head, fullID) {
+		return "", false
+	}
+	return strings.TrimSpace(content), true
+}
+
+// indexNthByte returns the byte offset of the n-th occurrence of c, or -1 if
+// it occurs fewer than n times.
+func indexNthByte(s string, c byte, n int) int {
+	count := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == c {
+			count++
+			if count == n {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+// ensureTrailingBlank guarantees the builder ends with "\n\n".
+func ensureTrailingBlank(b *strings.Builder) {
+	s := b.String()
+	if !strings.HasSuffix(s, "\n\n") {
+		if strings.HasSuffix(s, "\n") {
+			b.WriteString("\n")
+		} else {
+			b.WriteString("\n\n")
+		}
+	}
 }
 
 // applyCurrentAndInference mutates sprints in place:

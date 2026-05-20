@@ -366,3 +366,66 @@ func TestLoadDetailContent_IterNonCurrent(t *testing.T) {
 		t.Errorf("expected Section verbatim, got: %q", got)
 	}
 }
+
+func TestLoadDetailContent_IterCurrent_HeaderAndBlocks(t *testing.T) {
+	tmpDir := t.TempDir()
+	aiDir := filepath.Join(tmpDir, ".ai")
+	runTemp := filepath.Join(aiDir, "iter-run-temp")
+	docsDir := filepath.Join(tmpDir, "docs", "iterations")
+	os.MkdirAll(runTemp, 0755)
+	os.MkdirAll(docsDir, 0755)
+
+	os.WriteFile(filepath.Join(aiDir, "iter-workflow-status.txt"), []byte("fail\n"), 0644)
+	os.WriteFile(filepath.Join(docsDir, "progress.md"),
+		[]byte("# Iteration Progress\n\n**Iteration:** ITER-0003a\n**Tasks:** 8/12 done\n"), 0644)
+	os.WriteFile(filepath.Join(runTemp, "task_status.txt"),
+		[]byte("TASK-01|done\nTASK-02|in_progress\n"), 0644)
+
+	s := Sprint{
+		ID:        "0003a",
+		IDPrefix:  "ITER",
+		Title:     "Phase 2a",
+		Status:    "in_progress",
+		IsCurrent: true,
+		Section:   "### ITER-0003a — Phase 2a\n**Status:** in_progress\n\nBody.",
+	}
+	got, err := LoadDetailContent(s, tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Header line: ID + status + run status
+	if !strings.HasPrefix(got, "ITER-0003a") {
+		t.Errorf("expected header to start with ITER-0003a, got: %q", got[:40])
+	}
+	if !strings.Contains(got, "in_progress") {
+		t.Errorf("expected parsed status in header")
+	}
+	if !strings.Contains(got, "run status: fail") {
+		t.Errorf("expected run status in header")
+	}
+
+	// Progress block
+	if !strings.Contains(got, "## Progress") {
+		t.Errorf("expected Progress section header")
+	}
+	if !strings.Contains(got, "Tasks:** 8/12 done") {
+		t.Errorf("expected progress.md content in output")
+	}
+
+	// Tasks block
+	if !strings.Contains(got, "## Tasks") {
+		t.Errorf("expected Tasks section header")
+	}
+	if !strings.Contains(got, "TASK-01|done") {
+		t.Errorf("expected task_status content")
+	}
+
+	// Section still present at the bottom
+	if !strings.Contains(got, "## Roadmap Section") {
+		t.Errorf("expected Roadmap Section header")
+	}
+	if !strings.Contains(got, "### ITER-0003a — Phase 2a") {
+		t.Errorf("expected roadmap section content")
+	}
+}
