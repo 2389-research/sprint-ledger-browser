@@ -274,3 +274,37 @@ func TestLoadIterRoadmap_NotFound(t *testing.T) {
 		t.Error("expected error when neither roadmap path exists")
 	}
 }
+
+func TestDetectLayout_PrefersLedger(t *testing.T) {
+	tmpDir := t.TempDir()
+	aiDir := filepath.Join(tmpDir, ".ai")
+	docsDir := filepath.Join(tmpDir, "docs", "iterations")
+	os.MkdirAll(aiDir, 0755)
+	os.MkdirAll(docsDir, 0755)
+	os.WriteFile(filepath.Join(aiDir, "ledger.yaml"), []byte("sprints: []\n"), 0644)
+	os.WriteFile(filepath.Join(docsDir, "roadmap.md"), []byte("### ITER-0001 — Hi\n"), 0644)
+
+	if got := DetectLayout(tmpDir); got != layoutLedger {
+		t.Errorf("expected layoutLedger, got %v", got)
+	}
+}
+
+func TestDetectLayout_FallsBackToIter(t *testing.T) {
+	tmpDir := t.TempDir()
+	docsDir := filepath.Join(tmpDir, "docs", "iterations")
+	os.MkdirAll(docsDir, 0755)
+	os.WriteFile(filepath.Join(docsDir, "roadmap.md"), []byte("### ITER-0001 — Hi\n"), 0644)
+
+	if got := DetectLayout(tmpDir); got != layoutIter {
+		t.Errorf("expected layoutIter, got %v", got)
+	}
+}
+
+func TestDetectLayout_DefaultsToLedgerWhenNothingFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Defaults to layoutLedger so LoadSprints surfaces the existing
+	// "no ledger found" error verbatim — no behavior change for empty projects.
+	if got := DetectLayout(tmpDir); got != layoutLedger {
+		t.Errorf("expected layoutLedger default, got %v", got)
+	}
+}

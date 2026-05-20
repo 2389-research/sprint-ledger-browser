@@ -240,3 +240,21 @@ func isReviewFilename(name string) bool {
 	}
 	return false
 }
+
+// DetectLayout returns which layout LoadSprints will use for the given project.
+// Selection order matches LoadSprints exactly. Defaults to layoutLedger when
+// nothing is present so the existing "no ledger found" error path is preserved.
+func DetectLayout(projectRoot string) layout {
+	if _, err := os.Stat(filepath.Join(projectRoot, ".ai", "ledger.yaml")); err == nil {
+		return layoutLedger
+	}
+	if _, err := os.Stat(filepath.Join(projectRoot, ".ai", "ledger.tsv")); err == nil {
+		return layoutLedger
+	}
+	for _, rel := range roadmapSearchOrder {
+		if _, err := os.Stat(filepath.Join(projectRoot, rel)); err == nil {
+			return layoutIter
+		}
+	}
+	return layoutLedger
+}
