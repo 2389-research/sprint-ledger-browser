@@ -63,6 +63,15 @@ func readCurrentIterationID(projectRoot string) string {
 	return strings.TrimPrefix(raw, "ITER-")
 }
 
+// renderIterDetailWithOverlay composes the status-first overlay for the
+// current iteration: header + progress + tasks + reviews + loop context +
+// roadmap section. Each block is best-effort; missing files are silently
+// omitted. Implemented incrementally; see Task 10–12 for sections.
+func renderIterDetailWithOverlay(s Sprint, projectRoot string) string {
+	// Stub: just returns the section for now. Overlay blocks added in Task 10+.
+	return s.Section
+}
+
 // applyCurrentAndInference mutates sprints in place:
 //   - sets IsCurrent on the sprint whose ID matches currentID
 //   - fills empty Status fields based on position relative to the current iter

@@ -226,11 +226,17 @@ func effectivePrefix(s Sprint) string {
 	return s.IDPrefix
 }
 
-// LoadDetailContent reads the content of a sprint detail file.
-// Returns a placeholder message if the path is empty.
-// Returns an error if the file exists but can't be read.
-// projectRoot is used for iter-* layout overlay reads; ignored for ledger layout.
+// LoadDetailContent returns the detail markdown for a sprint.
+//   - Ledger layout: reads s.DetailPath, or returns a placeholder when empty.
+//   - Iter-* layout (s.Section non-empty): returns the roadmap section.
+//     For the current iteration, prepends a live overlay.
 func LoadDetailContent(s Sprint, projectRoot string) (string, error) {
+	if s.Section != "" {
+		if s.IsCurrent {
+			return renderIterDetailWithOverlay(s, projectRoot), nil
+		}
+		return s.Section, nil
+	}
 	if s.DetailPath == "" {
 		return fmt.Sprintf("No sprint detail file found for SPRINT-%s.md", s.ID), nil
 	}

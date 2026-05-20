@@ -349,3 +349,20 @@ func TestLoadSprints_PrefersLedgerOverRoadmap(t *testing.T) {
 		t.Errorf("expected ledger sprint to have empty/SPRINT IDPrefix, got %q", sprints[0].IDPrefix)
 	}
 }
+
+func TestLoadDetailContent_IterNonCurrent(t *testing.T) {
+	s := Sprint{
+		ID:       "0001",
+		IDPrefix: "ITER",
+		Title:    "First",
+		Status:   "completed",
+		Section:  "### ITER-0001 — First\n**Status:** done\n\nBody.",
+	}
+	got, err := LoadDetailContent(s, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != s.Section {
+		t.Errorf("expected Section verbatim, got: %q", got)
+	}
+}
