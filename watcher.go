@@ -102,7 +102,7 @@ func isRelevantEvent(event fsnotify.Event, projectRoot string, lay layout) bool 
 			return true
 		}
 		// Files inside iter-run-temp/: only .md and .txt.
-		if strings.HasPrefix(event.Name, filepath.Join(projectRoot, ".ai", "iter-run-temp")) {
+		if strings.HasPrefix(event.Name, filepath.Join(projectRoot, ".ai", "iter-run-temp")+string(filepath.Separator)) {
 			return strings.HasSuffix(base, ".md") || strings.HasSuffix(base, ".txt")
 		}
 		return false

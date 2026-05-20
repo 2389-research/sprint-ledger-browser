@@ -1,5 +1,5 @@
-// ABOUTME: Sprint data model and ledger parser (TSV and YAML formats).
-// ABOUTME: Reads .ai/ledger.tsv or .ai/ledger.yaml and resolves paths to SPRINT-*.md detail files.
+// ABOUTME: Sprint loader — picks YAML/TSV ledger or iter-* roadmap and returns Sprint records.
+// ABOUTME: Resolves detail-file paths for ledger sprints; iter sprints carry Section content inline.
 package main
 
 import (
