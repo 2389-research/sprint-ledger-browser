@@ -17,11 +17,14 @@ import (
 
 type Sprint struct {
 	ID         string
+	IDPrefix   string    // "SPRINT" (default) or "ITER"; empty treated as "SPRINT"
 	Title      string
 	Status     string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
-	DetailPath string
+	DetailPath string    // populated for ledger layout
+	Section    string    // populated for iter-* layout — verbatim roadmap section
+	IsCurrent  bool      // matches .ai/iter-current-iteration.txt
 }
 
 // ParseLedger reads a tab-separated ledger file and returns Sprint records.
@@ -191,6 +194,15 @@ func LoadSprints(projectRoot string) ([]Sprint, error) {
 	}
 
 	return sprints, nil
+}
+
+// effectivePrefix returns the ID prefix for display, defaulting to "SPRINT"
+// when Sprint.IDPrefix is empty (back-compat for ledger-layout sprints).
+func effectivePrefix(s Sprint) string {
+	if s.IDPrefix == "" {
+		return "SPRINT"
+	}
+	return s.IDPrefix
 }
 
 // LoadDetailContent reads the content of a sprint detail file.
