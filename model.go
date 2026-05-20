@@ -106,7 +106,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if len(sprints) > 0 && cursor < len(sprints) {
-			content, err := LoadDetailContent(sprints[cursor])
+			content, err := LoadDetailContent(sprints[cursor], m.projectRoot)
 			if err != nil {
 				content = fmt.Sprintf("Error: %v", err)
 			}
@@ -146,7 +146,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.ready {
 			m.viewport = viewport.New(contentWidth, detailHeight)
 			if len(m.sprints) > 0 {
-				content, err := LoadDetailContent(m.sprints[0])
+				content, err := LoadDetailContent(m.sprints[0], m.projectRoot)
 				if err != nil {
 					content = fmt.Sprintf("Error: %v", err)
 				}
@@ -204,7 +204,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 		if m.table.Cursor() != prevCursor && m.table.Cursor() < len(m.sprints) {
-			content, err := LoadDetailContent(m.sprints[m.table.Cursor()])
+			content, err := LoadDetailContent(m.sprints[m.table.Cursor()], m.projectRoot)
 			if err != nil {
 				content = fmt.Sprintf("Error: %v", err)
 			}

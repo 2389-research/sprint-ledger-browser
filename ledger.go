@@ -208,7 +208,8 @@ func effectivePrefix(s Sprint) string {
 // LoadDetailContent reads the content of a sprint detail file.
 // Returns a placeholder message if the path is empty.
 // Returns an error if the file exists but can't be read.
-func LoadDetailContent(s Sprint) (string, error) {
+// projectRoot is used for iter-* layout overlay reads; ignored for ledger layout.
+func LoadDetailContent(s Sprint, projectRoot string) (string, error) {
 	if s.DetailPath == "" {
 		return fmt.Sprintf("No sprint detail file found for SPRINT-%s.md", s.ID), nil
 	}
