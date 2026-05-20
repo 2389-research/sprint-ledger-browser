@@ -22,7 +22,7 @@ func TestWatchLedger_DetectsChange(t *testing.T) {
 	os.WriteFile(ledgerPath, []byte(initial), 0644)
 
 	// Start watching in a goroutine
-	cmd := watchLedger(tmpDir)
+	cmd := watchProject(tmpDir, layoutLedger)
 
 	done := make(chan tea.Msg, 1)
 	go func() {
@@ -55,7 +55,7 @@ func TestWatchLedger_IgnoresOtherFiles(t *testing.T) {
 	ledgerPath := filepath.Join(aiDir, "ledger.tsv")
 	os.WriteFile(ledgerPath, []byte("sprint_id\ttitle\tstatus\n"), 0644)
 
-	cmd := watchLedger(tmpDir)
+	cmd := watchProject(tmpDir, layoutLedger)
 
 	done := make(chan tea.Msg, 1)
 	go func() {
@@ -87,7 +87,7 @@ func TestModel_LedgerChangedMsg_ReloadsData(t *testing.T) {
 	os.WriteFile(filepath.Join(sprintsDir, "SPRINT-001.md"), []byte("# First"), 0644)
 
 	sprints, _ := LoadSprints(tmpDir)
-	m := newModel(sprints, "test", tmpDir)
+	m := newModel(sprints, "test", tmpDir, layoutLedger)
 
 	// Initialize and resize
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -115,5 +115,29 @@ func TestModel_LedgerChangedMsg_ReloadsData(t *testing.T) {
 	// Should return a new watch command to re-arm the watcher
 	if cmd == nil {
 		t.Error("expected a new watchLedger cmd after reload")
+	}
+}
+
+func TestWatchProject_LedgerLayout_BehavesAsBefore(t *testing.T) {
+	tmpDir := t.TempDir()
+	aiDir := filepath.Join(tmpDir, ".ai")
+	os.MkdirAll(aiDir, 0755)
+	ledgerPath := filepath.Join(aiDir, "ledger.tsv")
+	os.WriteFile(ledgerPath, []byte("sprint_id\ttitle\tstatus\n001\tFirst\tplanned\n"), 0644)
+
+	cmd := watchProject(tmpDir, layoutLedger)
+	done := make(chan tea.Msg, 1)
+	go func() { done <- cmd() }()
+	time.Sleep(200 * time.Millisecond)
+
+	os.WriteFile(ledgerPath, []byte("sprint_id\ttitle\tstatus\n001\tFirst\tcompleted\n"), 0644)
+
+	select {
+	case msg := <-done:
+		if _, ok := msg.(ledgerChangedMsg); !ok {
+			t.Errorf("expected ledgerChangedMsg, got %T", msg)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for ledgerChangedMsg")
 	}
 }

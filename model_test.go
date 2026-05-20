@@ -22,7 +22,7 @@ func loadTestSprints(t *testing.T) []Sprint {
 
 func TestModel_Init(t *testing.T) {
 	sprints := loadTestSprints(t)
-	m := newModel(sprints, "test-project", "")
+	m := newModel(sprints, "test-project", "", layoutLedger)
 
 	if m.projectName != "test-project" {
 		t.Errorf("expected project name 'test-project', got '%s'", m.projectName)
@@ -37,7 +37,7 @@ func TestModel_Init(t *testing.T) {
 
 func TestModel_WindowResize(t *testing.T) {
 	sprints := loadTestSprints(t)
-	m := newModel(sprints, "test-project", "")
+	m := newModel(sprints, "test-project", "", layoutLedger)
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	um := updated.(model)
@@ -52,7 +52,7 @@ func TestModel_WindowResize(t *testing.T) {
 
 func TestModel_QuitOnQ(t *testing.T) {
 	sprints := loadTestSprints(t)
-	m := newModel(sprints, "test-project", "")
+	m := newModel(sprints, "test-project", "", layoutLedger)
 
 	// Send resize first so model is ready
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -71,7 +71,7 @@ func TestModel_QuitOnQ(t *testing.T) {
 
 func TestModel_FocusToggle(t *testing.T) {
 	sprints := loadTestSprints(t)
-	m := newModel(sprints, "test-project", "")
+	m := newModel(sprints, "test-project", "", layoutLedger)
 
 	// Resize to initialize viewport
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -104,7 +104,7 @@ func TestE2E_FullRender(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := newModel(sprints, "test-project", "")
+	m := newModel(sprints, "test-project", "", layoutLedger)
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m2 := updated.(model)
@@ -137,7 +137,7 @@ func TestE2E_EmptyLedger(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := newModel(sprints, "empty-project", "")
+	m := newModel(sprints, "empty-project", "", layoutLedger)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m2 := updated.(model)
 
@@ -149,7 +149,7 @@ func TestE2E_EmptyLedger(t *testing.T) {
 
 func TestModel_CursorMovementUpdatesDetail(t *testing.T) {
 	sprints := loadTestSprints(t)
-	m := newModel(sprints, "test-project", "")
+	m := newModel(sprints, "test-project", "", layoutLedger)
 
 	// Resize to initialize
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -174,7 +174,7 @@ func TestModel_CursorMovementUpdatesDetail(t *testing.T) {
 
 func TestModel_FocusToggleWithEnter(t *testing.T) {
 	sprints := loadTestSprints(t)
-	m := newModel(sprints, "test-project", "")
+	m := newModel(sprints, "test-project", "", layoutLedger)
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m2 := updated.(model)
@@ -198,7 +198,7 @@ func TestModel_FocusToggleWithEnter(t *testing.T) {
 
 func TestModel_EnterOnlyGoesToDetail(t *testing.T) {
 	sprints := loadTestSprints(t)
-	m := newModel(sprints, "test-project", "")
+	m := newModel(sprints, "test-project", "", layoutLedger)
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m2 := updated.(model)
@@ -220,7 +220,7 @@ func TestModel_EnterOnlyGoesToDetail(t *testing.T) {
 
 func TestModel_QuitOnCtrlC(t *testing.T) {
 	sprints := loadTestSprints(t)
-	m := newModel(sprints, "test-project", "")
+	m := newModel(sprints, "test-project", "", layoutLedger)
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
@@ -237,7 +237,7 @@ func TestModel_QuitOnCtrlC(t *testing.T) {
 
 func TestModel_EscapeReturnsToTable(t *testing.T) {
 	sprints := loadTestSprints(t)
-	m := newModel(sprints, "test-project", "")
+	m := newModel(sprints, "test-project", "", layoutLedger)
 
 	// Resize to initialize
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -261,7 +261,7 @@ func TestModel_EscapeReturnsToTable(t *testing.T) {
 
 func TestModel_TinyTerminalNoPanic(t *testing.T) {
 	sprints := loadTestSprints(t)
-	m := newModel(sprints, "test-project", "")
+	m := newModel(sprints, "test-project", "", layoutLedger)
 
 	// Terminal so small that detailHeight would go negative without clamping
 	sizes := []tea.WindowSizeMsg{
