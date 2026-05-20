@@ -27,6 +27,8 @@ func FormatStatus(status string) string {
 		return dimStyle.Strikethrough(true).Render("⊘ skip")
 	case "failed":
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render("✗ fail")
+	case "pending":
+		return dimStyle.Render("○ pend")
 	default:
 		return "? " + status
 	}
