@@ -429,3 +429,55 @@ func TestLoadDetailContent_IterCurrent_HeaderAndBlocks(t *testing.T) {
 		t.Errorf("expected roadmap section content")
 	}
 }
+
+func TestLoadDetailContent_IterCurrent_ReviewsAndLoopContext(t *testing.T) {
+	tmpDir := t.TempDir()
+	aiDir := filepath.Join(tmpDir, ".ai")
+	runTemp := filepath.Join(aiDir, "iter-run-temp")
+	docsDir := filepath.Join(tmpDir, "docs", "iterations")
+	os.MkdirAll(runTemp, 0755)
+	os.MkdirAll(docsDir, 0755)
+
+	os.WriteFile(filepath.Join(aiDir, "iter-loop-context.txt"),
+		[]byte("Attempt 1 failed.\nReason: scope too large.\n"), 0644)
+	os.WriteFile(filepath.Join(runTemp, "scope_review_a.md"), []byte("review a"), 0644)
+	os.WriteFile(filepath.Join(runTemp, "scope_review_b.md"), []byte("review b"), 0644)
+	os.WriteFile(filepath.Join(runTemp, "fresh_spec_a.md"), []byte("spec a"), 0644)
+	os.WriteFile(filepath.Join(runTemp, "scope.md"), []byte("scope"), 0644)
+	os.WriteFile(filepath.Join(runTemp, "ignored.log"), []byte("ignored"), 0644)
+
+	s := Sprint{
+		ID: "0003a", IDPrefix: "ITER", IsCurrent: true,
+		Status: "in_progress", Section: "### ITER-0003a — Body",
+	}
+	got, err := LoadDetailContent(s, tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(got, "## Reviews") {
+		t.Errorf("expected Reviews section header")
+	}
+	for _, name := range []string{"scope_review_a.md", "scope_review_b.md", "fresh_spec_a.md", "scope.md"} {
+		if !strings.Contains(got, name) {
+			t.Errorf("expected review filename %s in output", name)
+		}
+	}
+	if strings.Contains(got, "ignored.log") {
+		t.Errorf("unexpected non-review file listed: ignored.log")
+	}
+	if !strings.Contains(got, "## Loop Context") {
+		t.Errorf("expected Loop Context section header")
+	}
+	if !strings.Contains(got, "Attempt 1 failed.") {
+		t.Errorf("expected loop-context content")
+	}
+
+	// Reviews must appear before Loop Context, which must appear before Roadmap Section.
+	idxReviews := strings.Index(got, "## Reviews")
+	idxLoop := strings.Index(got, "## Loop Context")
+	idxRoadmap := strings.Index(got, "## Roadmap Section")
+	if !(idxReviews < idxLoop && idxLoop < idxRoadmap) {
+		t.Errorf("ordering wrong: reviews=%d loop=%d roadmap=%d", idxReviews, idxLoop, idxRoadmap)
+	}
+}

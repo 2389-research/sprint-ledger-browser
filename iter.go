@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 )
 
 // ErrNoRoadmap is returned by LoadIterRoadmap when no roadmap file is found
@@ -98,6 +100,22 @@ func renderIterDetailWithOverlay(s Sprint, projectRoot string) string {
 		b.WriteString("\n\n")
 	}
 
+	// Reviews block — list filenames + mtimes only.
+	if reviews := listReviewFiles(filepath.Join(projectRoot, ".ai", "iter-run-temp")); len(reviews) > 0 {
+		b.WriteString("## Reviews\n\n")
+		for _, r := range reviews {
+			fmt.Fprintf(&b, "%s  (last modified %s)\n", r.name, r.mtime.Format("2006-01-02 15:04"))
+		}
+		b.WriteString("\n")
+	}
+
+	// Loop Context block.
+	if ctx := readTrimmed(filepath.Join(projectRoot, ".ai", "iter-loop-context.txt")); ctx != "" {
+		b.WriteString("## Loop Context\n\n")
+		b.WriteString(ctx)
+		b.WriteString("\n\n")
+	}
+
 	// Roadmap section last.
 	b.WriteString("## Roadmap Section\n\n")
 	b.WriteString(s.Section)
@@ -175,4 +193,50 @@ func applyCurrentAndInference(sprints []Sprint, currentID string) {
 			sprints[i].Status = "pending"
 		}
 	}
+}
+
+type reviewFile struct {
+	name  string
+	mtime time.Time
+}
+
+// listReviewFiles returns review-related files in iter-run-temp, sorted by name.
+// Matches: *_review_*.md, fresh_spec_*.md, scope.md. Excludes everything else.
+func listReviewFiles(runTempDir string) []reviewFile {
+	entries, err := os.ReadDir(runTempDir)
+	if err != nil {
+		return nil
+	}
+	var out []reviewFile
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if !isReviewFilename(name) {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		out = append(out, reviewFile{name: name, mtime: info.ModTime()})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].name < out[j].name })
+	return out
+}
+
+func isReviewFilename(name string) bool {
+	if name == "scope.md" {
+		return true
+	}
+	if strings.HasSuffix(name, ".md") {
+		if strings.Contains(name, "_review_") {
+			return true
+		}
+		if strings.HasPrefix(name, "fresh_spec_") {
+			return true
+		}
+	}
+	return false
 }
