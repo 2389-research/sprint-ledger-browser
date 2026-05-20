@@ -141,3 +141,74 @@ func TestWatchProject_LedgerLayout_BehavesAsBefore(t *testing.T) {
 		t.Fatal("timed out waiting for ledgerChangedMsg")
 	}
 }
+
+func TestWatchProject_IterLayout_TriggersOnRoadmapChange(t *testing.T) {
+	tmpDir := t.TempDir()
+	docsDir := filepath.Join(tmpDir, "docs", "iterations")
+	aiDir := filepath.Join(tmpDir, ".ai")
+	os.MkdirAll(docsDir, 0755)
+	os.MkdirAll(aiDir, 0755)
+	roadmap := filepath.Join(docsDir, "roadmap.md")
+	os.WriteFile(roadmap, []byte("### ITER-0001 — Hi\n"), 0644)
+
+	cmd := watchProject(tmpDir, layoutIter)
+	done := make(chan tea.Msg, 1)
+	go func() { done <- cmd() }()
+	time.Sleep(200 * time.Millisecond)
+
+	os.WriteFile(roadmap, []byte("### ITER-0001 — Hi\n### ITER-0002 — There\n"), 0644)
+
+	select {
+	case msg := <-done:
+		if _, ok := msg.(ledgerChangedMsg); !ok {
+			t.Errorf("expected ledgerChangedMsg, got %T", msg)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for roadmap change")
+	}
+}
+
+func TestWatchProject_IterLayout_TriggersOnCurrentIterChange(t *testing.T) {
+	tmpDir := t.TempDir()
+	aiDir := filepath.Join(tmpDir, ".ai")
+	os.MkdirAll(aiDir, 0755)
+	currentPath := filepath.Join(aiDir, "iter-current-iteration.txt")
+	os.WriteFile(currentPath, []byte("ITER-0001"), 0644)
+
+	cmd := watchProject(tmpDir, layoutIter)
+	done := make(chan tea.Msg, 1)
+	go func() { done <- cmd() }()
+	time.Sleep(200 * time.Millisecond)
+
+	os.WriteFile(currentPath, []byte("ITER-0002"), 0644)
+
+	select {
+	case msg := <-done:
+		if _, ok := msg.(ledgerChangedMsg); !ok {
+			t.Errorf("expected ledgerChangedMsg, got %T", msg)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for current-iter change")
+	}
+}
+
+func TestWatchProject_IterLayout_IgnoresExtractTemp(t *testing.T) {
+	tmpDir := t.TempDir()
+	aiDir := filepath.Join(tmpDir, ".ai")
+	extractDir := filepath.Join(aiDir, "iter-extract-temp")
+	os.MkdirAll(extractDir, 0755)
+
+	cmd := watchProject(tmpDir, layoutIter)
+	done := make(chan tea.Msg, 1)
+	go func() { done <- cmd() }()
+	time.Sleep(200 * time.Millisecond)
+
+	os.WriteFile(filepath.Join(extractDir, "chunk_001.md"), []byte("noise"), 0644)
+
+	select {
+	case msg := <-done:
+		t.Errorf("expected no message for iter-extract-temp file, got %T", msg)
+	case <-time.After(500 * time.Millisecond):
+		// Good — no message.
+	}
+}
