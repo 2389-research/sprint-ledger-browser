@@ -19,8 +19,8 @@ var statusLineRE = regexp.MustCompile(`^\*\*Status:\*\*\s*(.*)$`)
 
 // ParseRoadmap reads a roadmap markdown file and returns one Sprint per
 // "### ITER-..." heading, each carrying its raw section text in Section.
-// Status normalization and current-iteration inference happen in LoadSprints,
-// not here.
+// Status values are normalized here; current-iteration inference for empty
+// Status fields happens in LoadSprints.
 func ParseRoadmap(r io.Reader) ([]Sprint, error) {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
