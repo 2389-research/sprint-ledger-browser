@@ -60,6 +60,12 @@ func ParseRoadmap(r io.Reader) ([]Sprint, error) {
 			continue
 		}
 
+		if current != nil && current.Status == "" {
+			if m := statusLineRE.FindStringSubmatch(line); m != nil {
+				current.Status = normalizeStatus(m[1])
+			}
+		}
+
 		if current != nil {
 			section.WriteString(line)
 			section.WriteString("\n")
@@ -71,4 +77,35 @@ func ParseRoadmap(r io.Reader) ([]Sprint, error) {
 		return nil, fmt.Errorf("scanning roadmap: %w", err)
 	}
 	return sprints, nil
+}
+
+// normalizeStatus extracts the leading token from a raw status string and maps
+// it to a canonical status. Examples:
+//
+//	"done"                            -> "completed"
+//	"done:ITER-0001"                  -> "completed"
+//	"in_progress (ITER-0002a done…)"  -> "in_progress"
+//	"fail"                            -> "failed"
+//	"pending"                         -> "pending"
+//	anything else                     -> "unknown"
+func normalizeStatus(raw string) string {
+	raw = strings.TrimSpace(raw)
+	// Leading token: stop at first space, "(", or ":".
+	idx := strings.IndexAny(raw, " (:")
+	token := raw
+	if idx >= 0 {
+		token = raw[:idx]
+	}
+	switch token {
+	case "done":
+		return "completed"
+	case "pending":
+		return "pending"
+	case "in_progress":
+		return "in_progress"
+	case "fail":
+		return "failed"
+	default:
+		return "unknown"
+	}
 }

@@ -9,6 +9,53 @@ import (
 	"testing"
 )
 
+func TestParseRoadmap_StatusNormalization(t *testing.T) {
+	input := `### ITER-0001 — A
+**Status:** done
+
+### ITER-0002 — B
+**Status:** pending
+
+### ITER-0003 — C
+**Status:** in_progress
+
+### ITER-0004 — D
+**Status:** done:ITER-0004
+
+### ITER-0005 — E
+**Status:** in_progress (ITER-0005a done:2026-05-15 — work; ITER-0005b pending — more)
+
+### ITER-0006 — F
+**Status:** fail
+
+### ITER-0007 — G
+**Status:** weird-value
+`
+
+	sprints, err := ParseRoadmap(strings.NewReader(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := map[string]string{
+		"0001": "completed",
+		"0002": "pending",
+		"0003": "in_progress",
+		"0004": "completed",
+		"0005": "in_progress",
+		"0006": "failed",
+		"0007": "unknown",
+	}
+	if len(sprints) != len(want) {
+		t.Fatalf("expected %d sprints, got %d", len(want), len(sprints))
+	}
+	for _, s := range sprints {
+		if got := s.Status; got != want[s.ID] {
+			t.Errorf("ID %s: status = %q, want %q", s.ID, got, want[s.ID])
+		}
+	}
+}
+
 func TestParseRoadmap_BasicHeadings(t *testing.T) {
 	f, err := os.Open(filepath.Join("testdata", "roadmap", "basic.md"))
 	if err != nil {
