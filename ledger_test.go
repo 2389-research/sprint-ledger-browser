@@ -288,3 +288,64 @@ func TestLoadSprints_PathTraversalInID(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadSprints_IterLayout(t *testing.T) {
+	tmpDir := t.TempDir()
+	docsDir := filepath.Join(tmpDir, "docs", "iterations")
+	aiDir := filepath.Join(tmpDir, ".ai")
+	os.MkdirAll(docsDir, 0755)
+	os.MkdirAll(aiDir, 0755)
+
+	roadmap := `### ITER-0001 — First
+**Status:** done
+
+### ITER-0002 — Second
+
+### ITER-0003 — Third
+`
+	os.WriteFile(filepath.Join(docsDir, "roadmap.md"), []byte(roadmap), 0644)
+	os.WriteFile(filepath.Join(aiDir, "iter-current-iteration.txt"), []byte("ITER-0002"), 0644)
+
+	sprints, err := LoadSprints(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sprints) != 3 {
+		t.Fatalf("expected 3 sprints, got %d", len(sprints))
+	}
+	if sprints[0].Status != "completed" || sprints[1].Status != "in_progress" || sprints[2].Status != "pending" {
+		t.Errorf("status inference wrong: %q, %q, %q",
+			sprints[0].Status, sprints[1].Status, sprints[2].Status)
+	}
+	if !sprints[1].IsCurrent {
+		t.Error("expected ITER-0002 to be marked IsCurrent")
+	}
+	if sprints[0].IDPrefix != "ITER" {
+		t.Errorf("expected IDPrefix ITER, got %q", sprints[0].IDPrefix)
+	}
+}
+
+func TestLoadSprints_PrefersLedgerOverRoadmap(t *testing.T) {
+	tmpDir := t.TempDir()
+	docsDir := filepath.Join(tmpDir, "docs", "iterations")
+	aiDir := filepath.Join(tmpDir, ".ai")
+	os.MkdirAll(docsDir, 0755)
+	os.MkdirAll(aiDir, 0755)
+
+	os.WriteFile(filepath.Join(docsDir, "roadmap.md"),
+		[]byte("### ITER-0001 — Should not be picked\n**Status:** done\n"), 0644)
+
+	tsv := "sprint_id\ttitle\tstatus\nXYZ\tShould be picked\tplanned\n"
+	os.WriteFile(filepath.Join(aiDir, "ledger.tsv"), []byte(tsv), 0644)
+
+	sprints, err := LoadSprints(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sprints) != 1 || sprints[0].ID != "XYZ" {
+		t.Fatalf("expected ledger to win, got %v", sprints)
+	}
+	if sprints[0].IDPrefix == "ITER" {
+		t.Errorf("expected ledger sprint to have empty/SPRINT IDPrefix, got %q", sprints[0].IDPrefix)
+	}
+}

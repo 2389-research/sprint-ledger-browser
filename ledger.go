@@ -155,35 +155,52 @@ func ParseYAMLLedger(r io.Reader) ([]Sprint, error) {
 	return sprints, nil
 }
 
-// LoadSprints reads the ledger from a project root and resolves detail file paths.
-// Tries ledger.yaml first, then falls back to ledger.tsv.
+// LoadSprints reads sprint records from a project root, trying layouts in order:
+//
+//  1. .ai/ledger.yaml          (existing yaml ledger)
+//  2. .ai/ledger.tsv           (existing tsv ledger)
+//  3. docs/iterations/roadmap.md or .ai/iter-scope-temp/iterations.md
+//     (new iter-* layout)
+//
+// For ledger layouts, resolves per-sprint detail file paths under .ai/sprints/.
+// For the iter-* layout, populates Section and IsCurrent in each Sprint.
 func LoadSprints(projectRoot string) ([]Sprint, error) {
 	aiDir := filepath.Join(projectRoot, ".ai")
 
-	var sprints []Sprint
-
 	yamlPath := filepath.Join(aiDir, "ledger.yaml")
-	tsvPath := filepath.Join(aiDir, "ledger.tsv")
-
 	if f, err := os.Open(yamlPath); err == nil {
 		defer f.Close()
-		sprints, err = ParseYAMLLedger(f)
+		sprints, err := ParseYAMLLedger(f)
 		if err != nil {
 			return nil, err
 		}
-	} else if f, err := os.Open(tsvPath); err == nil {
-		defer f.Close()
-		sprints, err = ParseLedger(f)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		return nil, fmt.Errorf("opening ledger: no ledger.yaml or ledger.tsv found in %s", aiDir)
+		resolveDetailPaths(sprints, projectRoot)
+		return sprints, nil
 	}
 
+	tsvPath := filepath.Join(aiDir, "ledger.tsv")
+	if f, err := os.Open(tsvPath); err == nil {
+		defer f.Close()
+		sprints, err := ParseLedger(f)
+		if err != nil {
+			return nil, err
+		}
+		resolveDetailPaths(sprints, projectRoot)
+		return sprints, nil
+	}
+
+	// Try iter-* layout last.
+	if sprints, err := LoadIterRoadmap(projectRoot); err == nil {
+		return sprints, nil
+	}
+
+	return nil, fmt.Errorf("opening ledger: no ledger.yaml, ledger.tsv, or roadmap.md found for %s", projectRoot)
+}
+
+// resolveDetailPaths populates DetailPath for ledger-layout sprints.
+func resolveDetailPaths(sprints []Sprint, projectRoot string) {
 	sprintsDir := filepath.Join(projectRoot, ".ai", "sprints")
 	for i := range sprints {
-		// Reject IDs containing path separators or traversal sequences
 		if strings.ContainsAny(sprints[i].ID, "/\\") || strings.Contains(sprints[i].ID, "..") {
 			continue
 		}
@@ -192,8 +209,6 @@ func LoadSprints(projectRoot string) ([]Sprint, error) {
 			sprints[i].DetailPath = detailPath
 		}
 	}
-
-	return sprints, nil
 }
 
 // effectivePrefix returns the ID prefix for display, defaulting to "SPRINT"
