@@ -69,9 +69,10 @@ func readCurrentIterationID(projectRoot string) string {
 // omitted.
 func renderIterDetailWithOverlay(s Sprint, projectRoot string) string {
 	var b strings.Builder
+	prefix := effectivePrefix(s)
 
 	// Header: "ITER-0003a  [in_progress | run status: fail]"
-	b.WriteString(effectivePrefix(s))
+	b.WriteString(prefix)
 	b.WriteString("-")
 	b.WriteString(s.ID)
 	b.WriteString("  [")
@@ -84,10 +85,10 @@ func renderIterDetailWithOverlay(s Sprint, projectRoot string) string {
 
 	// Progress block (docs/iterations/progress.md) — only if it references the current ITER ID.
 	progressPath := filepath.Join(projectRoot, "docs", "iterations", "progress.md")
-	if progress, ok := readProgressIfMatches(progressPath, effectivePrefix(s)+"-"+s.ID); ok {
+	if progress, ok := readProgressIfMatches(progressPath, prefix+"-"+s.ID); ok {
 		b.WriteString("## Progress\n\n")
 		b.WriteString(progress)
-		ensureTrailingBlank(&b)
+		b.WriteString("\n\n")
 	}
 
 	// Tasks block (.ai/iter-run-temp/task_status.txt)
@@ -144,18 +145,6 @@ func indexNthByte(s string, c byte, n int) int {
 		}
 	}
 	return -1
-}
-
-// ensureTrailingBlank guarantees the builder ends with "\n\n".
-func ensureTrailingBlank(b *strings.Builder) {
-	s := b.String()
-	if !strings.HasSuffix(s, "\n\n") {
-		if strings.HasSuffix(s, "\n") {
-			b.WriteString("\n")
-		} else {
-			b.WriteString("\n\n")
-		}
-	}
 }
 
 // applyCurrentAndInference mutates sprints in place:
