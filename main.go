@@ -46,14 +46,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	lay := DetectLayout(projectRoot)
 	sprints, err := LoadSprints(projectRoot)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
-
 	projectName := filepath.Base(projectRoot)
-	m := newModel(sprints, projectName, projectRoot)
+	m := newModel(sprints, projectName, projectRoot, lay)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {

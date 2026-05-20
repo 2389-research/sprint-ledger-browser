@@ -1,10 +1,11 @@
-// ABOUTME: Sprint data model and ledger parser (TSV and YAML formats).
-// ABOUTME: Reads .ai/ledger.tsv or .ai/ledger.yaml and resolves paths to SPRINT-*.md detail files.
+// ABOUTME: Sprint loader — picks YAML/TSV ledger or iter-* roadmap and returns Sprint records.
+// ABOUTME: Resolves detail-file paths for ledger sprints; iter sprints carry Section content inline.
 package main
 
 import (
 	"bytes"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -17,11 +18,14 @@ import (
 
 type Sprint struct {
 	ID         string
+	IDPrefix   string    // "SPRINT" (default) or "ITER"; empty treated as "SPRINT"
 	Title      string
 	Status     string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
-	DetailPath string
+	DetailPath string    // populated for ledger layout
+	Section    string    // populated for iter-* layout — verbatim roadmap section
+	IsCurrent  bool      // matches .ai/iter-current-iteration.txt
 }
 
 // ParseLedger reads a tab-separated ledger file and returns Sprint records.
@@ -152,32 +156,54 @@ func ParseYAMLLedger(r io.Reader) ([]Sprint, error) {
 	return sprints, nil
 }
 
-// LoadSprints reads the ledger from a project root and resolves detail file paths.
-// Tries ledger.yaml first, then falls back to ledger.tsv.
+// LoadSprints reads sprint records from a project root, trying layouts in order:
+//
+//  1. .ai/ledger.yaml          (existing yaml ledger)
+//  2. .ai/ledger.tsv           (existing tsv ledger)
+//  3. docs/iterations/roadmap.md or .ai/iter-scope-temp/iterations.md
+//     (new iter-* layout)
+//
+// For ledger layouts, resolves per-sprint detail file paths under .ai/sprints/.
+// For the iter-* layout, populates Section and IsCurrent in each Sprint.
 func LoadSprints(projectRoot string) ([]Sprint, error) {
 	aiDir := filepath.Join(projectRoot, ".ai")
 
-	var sprints []Sprint
-
 	yamlPath := filepath.Join(aiDir, "ledger.yaml")
-	tsvPath := filepath.Join(aiDir, "ledger.tsv")
-
 	if f, err := os.Open(yamlPath); err == nil {
 		defer f.Close()
-		sprints, err = ParseYAMLLedger(f)
+		sprints, err := ParseYAMLLedger(f)
 		if err != nil {
 			return nil, err
 		}
-	} else if f, err := os.Open(tsvPath); err == nil {
-		defer f.Close()
-		sprints, err = ParseLedger(f)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		return nil, fmt.Errorf("opening ledger: no ledger.yaml or ledger.tsv found in %s", aiDir)
+		resolveDetailPaths(sprints, projectRoot)
+		return sprints, nil
 	}
 
+	tsvPath := filepath.Join(aiDir, "ledger.tsv")
+	if f, err := os.Open(tsvPath); err == nil {
+		defer f.Close()
+		sprints, err := ParseLedger(f)
+		if err != nil {
+			return nil, err
+		}
+		resolveDetailPaths(sprints, projectRoot)
+		return sprints, nil
+	}
+
+	// Try iter-* layout last.
+	sprints, err := LoadIterRoadmap(projectRoot)
+	if err == nil {
+		return sprints, nil
+	}
+	if !errors.Is(err, ErrNoRoadmap) {
+		return nil, err // real parse error, surface it
+	}
+
+	return nil, fmt.Errorf("opening ledger: no ledger.yaml, ledger.tsv, or roadmap.md found for %s", projectRoot)
+}
+
+// resolveDetailPaths populates DetailPath for ledger-layout sprints.
+func resolveDetailPaths(sprints []Sprint, projectRoot string) {
 	sprintsDir := filepath.Join(projectRoot, ".ai", "sprints")
 	for i := range sprints {
 		// Reject IDs containing path separators or traversal sequences
@@ -189,14 +215,28 @@ func LoadSprints(projectRoot string) ([]Sprint, error) {
 			sprints[i].DetailPath = detailPath
 		}
 	}
-
-	return sprints, nil
 }
 
-// LoadDetailContent reads the content of a sprint detail file.
-// Returns a placeholder message if the path is empty.
-// Returns an error if the file exists but can't be read.
-func LoadDetailContent(s Sprint) (string, error) {
+// effectivePrefix returns the ID prefix for display, defaulting to "SPRINT"
+// when Sprint.IDPrefix is empty (back-compat for ledger-layout sprints).
+func effectivePrefix(s Sprint) string {
+	if s.IDPrefix == "" {
+		return "SPRINT"
+	}
+	return s.IDPrefix
+}
+
+// LoadDetailContent returns the detail markdown for a sprint.
+//   - Ledger layout: reads s.DetailPath, or returns a placeholder when empty.
+//   - Iter-* layout (s.Section non-empty): returns the roadmap section.
+//     For the current iteration, prepends a live overlay.
+func LoadDetailContent(s Sprint, projectRoot string) (string, error) {
+	if s.Section != "" {
+		if s.IsCurrent {
+			return renderIterDetailWithOverlay(s, projectRoot), nil
+		}
+		return s.Section, nil
+	}
 	if s.DetailPath == "" {
 		return fmt.Sprintf("No sprint detail file found for SPRINT-%s.md", s.ID), nil
 	}

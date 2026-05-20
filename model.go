@@ -22,6 +22,7 @@ type model struct {
 	sprints     []Sprint
 	projectName string
 	projectRoot string
+	lay         layout
 	table       table.Model
 	viewport    viewport.Model
 	focus       focus
@@ -30,7 +31,7 @@ type model struct {
 	ready       bool
 }
 
-func newModel(sprints []Sprint, projectName, projectRoot string) model {
+func newModel(sprints []Sprint, projectName, projectRoot string, lay layout) model {
 	columns := []table.Column{
 		{Title: "ID", Width: 5},
 		{Title: "Title", Width: 30},
@@ -67,6 +68,7 @@ func newModel(sprints []Sprint, projectName, projectRoot string) model {
 		sprints:     sprints,
 		projectName: projectName,
 		projectRoot: projectRoot,
+		lay:         lay,
 		table:       t,
 		focus:       focusTable,
 	}
@@ -74,7 +76,7 @@ func newModel(sprints []Sprint, projectName, projectRoot string) model {
 
 func (m model) Init() tea.Cmd {
 	if m.projectRoot != "" {
-		return watchLedger(m.projectRoot)
+		return watchProject(m.projectRoot, m.lay)
 	}
 	return nil
 }
@@ -86,7 +88,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ledgerChangedMsg:
 		sprints, err := LoadSprints(m.projectRoot)
 		if err != nil {
-			return m, watchLedger(m.projectRoot)
+			return m, watchProject(m.projectRoot, m.lay)
 		}
 		m.sprints = sprints
 
@@ -106,7 +108,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if len(sprints) > 0 && cursor < len(sprints) {
-			content, err := LoadDetailContent(sprints[cursor])
+			content, err := LoadDetailContent(sprints[cursor], m.projectRoot)
 			if err != nil {
 				content = fmt.Sprintf("Error: %v", err)
 			}
@@ -115,7 +117,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.SetContent("No sprints found")
 		}
 
-		return m, watchLedger(m.projectRoot)
+		return m, watchProject(m.projectRoot, m.lay)
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -146,7 +148,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.ready {
 			m.viewport = viewport.New(contentWidth, detailHeight)
 			if len(m.sprints) > 0 {
-				content, err := LoadDetailContent(m.sprints[0])
+				content, err := LoadDetailContent(m.sprints[0], m.projectRoot)
 				if err != nil {
 					content = fmt.Sprintf("Error: %v", err)
 				}
@@ -204,7 +206,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 		if m.table.Cursor() != prevCursor && m.table.Cursor() < len(m.sprints) {
-			content, err := LoadDetailContent(m.sprints[m.table.Cursor()])
+			content, err := LoadDetailContent(m.sprints[m.table.Cursor()], m.projectRoot)
 			if err != nil {
 				content = fmt.Sprintf("Error: %v", err)
 			}

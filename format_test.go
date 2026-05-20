@@ -46,6 +46,19 @@ func TestFormatDate_Zero(t *testing.T) {
 	}
 }
 
+func TestFormatStatus_PendingAndUnknown(t *testing.T) {
+	cases := map[string]string{
+		"pending": "○ pend",
+		"unknown": "? unknown",
+	}
+	for input, wantSubstr := range cases {
+		got := FormatStatus(input)
+		if !strings.Contains(got, wantSubstr) {
+			t.Errorf("FormatStatus(%q) = %q, want substring %q", input, got, wantSubstr)
+		}
+	}
+}
+
 func TestSprintsToRows(t *testing.T) {
 	sprints := []Sprint{
 		{ID: "001", Title: "Scaffolding", Status: "completed", UpdatedAt: time.Date(2026, 4, 13, 0, 0, 0, 0, time.UTC)},
