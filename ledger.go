@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -190,8 +191,12 @@ func LoadSprints(projectRoot string) ([]Sprint, error) {
 	}
 
 	// Try iter-* layout last.
-	if sprints, err := LoadIterRoadmap(projectRoot); err == nil {
+	sprints, err := LoadIterRoadmap(projectRoot)
+	if err == nil {
 		return sprints, nil
+	}
+	if !errors.Is(err, ErrNoRoadmap) {
+		return nil, err // real parse error, surface it
 	}
 
 	return nil, fmt.Errorf("opening ledger: no ledger.yaml, ledger.tsv, or roadmap.md found for %s", projectRoot)
@@ -201,6 +206,7 @@ func LoadSprints(projectRoot string) ([]Sprint, error) {
 func resolveDetailPaths(sprints []Sprint, projectRoot string) {
 	sprintsDir := filepath.Join(projectRoot, ".ai", "sprints")
 	for i := range sprints {
+		// Reject IDs containing path separators or traversal sequences
 		if strings.ContainsAny(sprints[i].ID, "/\\") || strings.Contains(sprints[i].ID, "..") {
 			continue
 		}

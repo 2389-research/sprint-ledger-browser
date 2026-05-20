@@ -3,11 +3,17 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+// ErrNoRoadmap is returned by LoadIterRoadmap when no roadmap file is found
+// at any of the search paths. It distinguishes "missing file" from "file exists
+// but failed to parse", so callers can choose to fall through or surface the error.
+var ErrNoRoadmap = errors.New("no roadmap found")
 
 // roadmapSearchOrder is the fixed list of relative paths LoadIterRoadmap tries.
 var roadmapSearchOrder = []string{
@@ -38,7 +44,7 @@ func LoadIterRoadmap(projectRoot string) ([]Sprint, error) {
 		break
 	}
 	if !found {
-		return nil, fmt.Errorf("no roadmap found (looked at %v relative to %s)", roadmapSearchOrder, projectRoot)
+		return nil, fmt.Errorf("%w (looked at %v relative to %s)", ErrNoRoadmap, roadmapSearchOrder, projectRoot)
 	}
 
 	currentID := readCurrentIterationID(projectRoot)
