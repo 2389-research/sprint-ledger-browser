@@ -481,3 +481,54 @@ func TestLoadDetailContent_IterCurrent_ReviewsAndLoopContext(t *testing.T) {
 		t.Errorf("ordering wrong: reviews=%d loop=%d roadmap=%d", idxReviews, idxLoop, idxRoadmap)
 	}
 }
+
+func TestLoadDetailContent_IterCurrent_AllOverlayFilesMissing(t *testing.T) {
+	tmpDir := t.TempDir()
+	// No .ai/, no docs/, no overlay files at all.
+
+	s := Sprint{
+		ID: "0001", IDPrefix: "ITER", IsCurrent: true,
+		Status: "in_progress", Section: "### ITER-0001 — Body",
+	}
+	got, err := LoadDetailContent(s, tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.HasPrefix(got, "ITER-0001") {
+		t.Errorf("expected header line, got: %q", got[:30])
+	}
+	// "run status:" must be absent when iter-workflow-status.txt is missing.
+	if strings.Contains(got, "run status:") {
+		t.Errorf("expected no 'run status:' clause when file missing")
+	}
+	for _, header := range []string{"## Progress", "## Tasks", "## Reviews", "## Loop Context"} {
+		if strings.Contains(got, header) {
+			t.Errorf("expected %s to be omitted when source file missing", header)
+		}
+	}
+	if !strings.Contains(got, "## Roadmap Section") {
+		t.Errorf("expected Roadmap Section to still be present")
+	}
+}
+
+func TestLoadDetailContent_IterCurrent_ProgressIDMismatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	docsDir := filepath.Join(tmpDir, "docs", "iterations")
+	os.MkdirAll(docsDir, 0755)
+	// progress.md mentions a different ITER than the sprint we render.
+	os.WriteFile(filepath.Join(docsDir, "progress.md"),
+		[]byte("**Iteration:** ITER-0099\n**Tasks:** 0/0 done\n"), 0644)
+
+	s := Sprint{
+		ID: "0001", IDPrefix: "ITER", IsCurrent: true,
+		Status: "in_progress", Section: "### ITER-0001 — Body",
+	}
+	got, err := LoadDetailContent(s, tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got, "## Progress") {
+		t.Errorf("expected Progress block to be skipped when progress.md references wrong ITER")
+	}
+}
