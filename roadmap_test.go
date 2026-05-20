@@ -164,3 +164,113 @@ func TestParseRoadmap_SubIterIDs(t *testing.T) {
 		t.Errorf("expected ID 0009b, got %q", sprints[1].ID)
 	}
 }
+
+func TestLoadIterRoadmap_InfersStatusFromCurrentIter(t *testing.T) {
+	tmpDir := t.TempDir()
+	aiDir := filepath.Join(tmpDir, ".ai")
+	docsDir := filepath.Join(tmpDir, "docs", "iterations")
+	if err := os.MkdirAll(aiDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(docsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	roadmap := `### ITER-0001 — A
+
+Body.
+
+### ITER-0002 — B
+
+Body.
+
+### ITER-0003 — C
+
+Body.
+
+### ITER-0004 — D
+
+Body.
+`
+	if err := os.WriteFile(filepath.Join(docsDir, "roadmap.md"), []byte(roadmap), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(aiDir, "iter-current-iteration.txt"), []byte("ITER-0002\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	sprints, err := LoadIterRoadmap(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sprints) != 4 {
+		t.Fatalf("expected 4 sprints, got %d", len(sprints))
+	}
+
+	wantStatus := []string{"completed", "in_progress", "pending", "pending"}
+	wantCurrent := []bool{false, true, false, false}
+	for i, s := range sprints {
+		if s.Status != wantStatus[i] {
+			t.Errorf("[%d] Status = %q, want %q", i, s.Status, wantStatus[i])
+		}
+		if s.IsCurrent != wantCurrent[i] {
+			t.Errorf("[%d] IsCurrent = %v, want %v", i, s.IsCurrent, wantCurrent[i])
+		}
+	}
+}
+
+func TestLoadIterRoadmap_ExplicitStatusWinsOverInference(t *testing.T) {
+	tmpDir := t.TempDir()
+	aiDir := filepath.Join(tmpDir, ".ai")
+	docsDir := filepath.Join(tmpDir, "docs", "iterations")
+	os.MkdirAll(aiDir, 0755)
+	os.MkdirAll(docsDir, 0755)
+
+	roadmap := `### ITER-0001 — A
+**Status:** done
+
+### ITER-0002 — B
+**Status:** pending
+
+### ITER-0003 — C
+`
+	os.WriteFile(filepath.Join(docsDir, "roadmap.md"), []byte(roadmap), 0644)
+	// Current iter is ITER-0003 (last); ITER-0002 has explicit "pending"
+	// which should NOT be overridden by inference even though it's before current.
+	os.WriteFile(filepath.Join(aiDir, "iter-current-iteration.txt"), []byte("ITER-0003"), 0644)
+
+	sprints, err := LoadIterRoadmap(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sprints[1].Status != "pending" {
+		t.Errorf("explicit pending should win, got %q", sprints[1].Status)
+	}
+}
+
+func TestLoadIterRoadmap_FallbackPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	scopeDir := filepath.Join(tmpDir, ".ai", "iter-scope-temp")
+	os.MkdirAll(scopeDir, 0755)
+
+	roadmap := `### ITER-0001 — Fallback
+**Status:** done
+`
+	os.WriteFile(filepath.Join(scopeDir, "iterations.md"), []byte(roadmap), 0644)
+
+	sprints, err := LoadIterRoadmap(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sprints) != 1 || sprints[0].ID != "0001" {
+		t.Fatalf("expected 1 sprint from fallback path, got %v", sprints)
+	}
+}
+
+func TestLoadIterRoadmap_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	_, err := LoadIterRoadmap(tmpDir)
+	if err == nil {
+		t.Error("expected error when neither roadmap path exists")
+	}
+}
