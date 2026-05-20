@@ -34,11 +34,14 @@ func watchProject(projectRoot string, lay layout) tea.Cmd {
 		defer watcher.Close()
 
 		dirs := watchDirs(projectRoot, lay)
+		added := 0
 		for _, d := range dirs {
 			// Best-effort: missing directories are silently skipped.
-			_ = watcher.Add(d)
+			if err := watcher.Add(d); err == nil {
+				added++
+			}
 		}
-		if len(dirs) == 0 {
+		if added == 0 {
 			return nil
 		}
 
@@ -99,7 +102,7 @@ func isRelevantEvent(event fsnotify.Event, projectRoot string, lay layout) bool 
 			return true
 		}
 		// Files inside iter-run-temp/: only .md and .txt.
-		if strings.Contains(event.Name, filepath.Join(".ai", "iter-run-temp")) {
+		if strings.HasPrefix(event.Name, filepath.Join(projectRoot, ".ai", "iter-run-temp")) {
 			return strings.HasSuffix(base, ".md") || strings.HasSuffix(base, ".txt")
 		}
 		return false
